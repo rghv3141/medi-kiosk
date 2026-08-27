@@ -1,5 +1,14 @@
+import os
 from fastapi import FastAPI, UploadFile, File
 from faster_whisper import WhisperModel
+from dotenv import load_dotenv
+from google import genai
+
+load_dotenv()
+
+gemini_client = genai.Client(
+    api_key=os.getenv("GEMINI_API_KEY")
+)
 
 app = FastAPI()
 
@@ -23,6 +32,7 @@ async def speech(file: UploadFile = File(...)):
     with open("/tmp/audio.webm", "wb") as f:
         f.write(audio)
 
+    # Convert speech to text
     segments, info = model.transcribe("/tmp/audio.webm")
 
     text = ""
@@ -30,6 +40,14 @@ async def speech(file: UploadFile = File(...)):
     for segment in segments:
         text += segment.text
 
+    # Send the text to Gemini
+    response = gemini_client.models.generate_content(
+        model="gemini-3.5-flash-lite",
+        contents=text
+    )
+
+    # Return both results
     return {
-        "text": text.strip()
+        "transcription": text.strip(),
+        "response": response.text
     }
